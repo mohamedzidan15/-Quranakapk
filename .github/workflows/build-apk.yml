@@ -1,0 +1,126 @@
+name: Build Quranak Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Quranak_Complete_App_v5.zip'
+      - 'adhan.mp3'
+      - 'images.zip'
+      - 'google-services.json'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Analyze and build release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.5'
+          channel: stable
+          cache: true
+
+      - name: Restore project files and Android scaffold
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORK="$RUNNER_TEMP/quranak-source"
+          mkdir -p "$WORK"
+          unzip -q "Quranak_Complete_App_v5.zip" -d "$WORK"
+          PROJECT="$WORK/Quranak_Complete_App_v5/quranak_flutter_app"
+          test -f "$PROJECT/pubspec.yaml"
+          test -f "$PROJECT/lib/main.dart"
+          test -f "google-services.json"
+          test -f "adhan.mp3"
+          test -f "images.zip"
+
+          mkdir -p "$PROJECT/assets/audio" "$PROJECT/assets/images"
+          cp adhan.mp3 "$PROJECT/assets/audio/adhan.mp3"
+          unzip -oq images.zip -d "$PROJECT/assets/images"
+          cp google-services.json "$PROJECT/android/app/google-services.json"
+
+          # Keep the original app source/config while Flutter generates the missing Android project files.
+          cp "$PROJECT/lib/main.dart" "$WORK/main.dart"
+          cp "$PROJECT/pubspec.yaml" "$WORK/pubspec.yaml"
+          cp "$PROJECT/android/app/src/main/AndroidManifest.xml" "$WORK/AndroidManifest.xml"
+          cd "$PROJECT"
+          flutter create --platforms=android --org com.quranak --project-name app --overwrite .
+          cp "$WORK/main.dart" lib/main.dart
+          cp "$WORK/pubspec.yaml" pubspec.yaml
+          cp "$WORK/AndroidManifest.xml" android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/res/raw
+          cp assets/audio/adhan.mp3 android/app/src/main/res/raw/adhan.mp3
+
+          # Use the supplied five local backgrounds instead of depending on the old image host.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("lib/main.dart")
+          s = p.read_text(encoding="utf-8")
+          for n in ("20", "21", "22", "23", "24"):
+              s = s.replace(f"https://quran1.kesug.com/{n}.png", f"assets/images/{n}.png")
+          s = s.replace("Image.network(\n                  _heroBgForPrayer(nextPrayerKey),",
+                        "Image.asset(\n                  _heroBgForPrayer(nextPrayerKey),")
+          s = s.replace("DarwinInitializationDetails(", "DarwinNotificationDetails(")
+          p.write_text(s, encoding="utf-8")
+          PY
+
+          # Add Google Services and Java API desugaring for scheduled notifications.
+          python3 - <<'PY'
+          from pathlib import Path
+          settings = Path("android/settings.gradle")
+          app = Path("android/app/build.gradle")
+          if not settings.exists() or not app.exists():
+              raise SystemExit("Expected Flutter Android Gradle files were not generated.")
+          s = settings.read_text()
+          marker = 'id "org.jetbrains.kotlin.android" version "1.9.0" apply false'
+          if marker not in s:
+              raise SystemExit("Could not find the Kotlin plugin declaration in settings.gradle.")
+          if 'com.google.gms.google-services' not in s:
+              s = s.replace(marker, marker + '\n    id "com.google.gms.google-services" version "4.4.2" apply false')
+          settings.write_text(s)
+          a = app.read_text()
+          if 'id "com.google.gms.google-services"' not in a:
+              a = a.replace('id "dev.flutter.flutter-gradle-plugin"',
+                            'id "dev.flutter.flutter-gradle-plugin"\n    id "com.google.gms.google-services"')
+          if "coreLibraryDesugaringEnabled true" not in a:
+              a = a.replace("compileOptions {", "compileOptions {\n        coreLibraryDesugaringEnabled true")
+          if "coreLibraryDesugaring " not in a:
+              a += "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}\n"
+          app.write_text(a)
+          PY
+
+      - name: Resolve dependencies
+        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter pub get
+
+      - name: Analyze Dart source
+        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+
+      - name: Build release APK
+        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quranak-release-apk
+          path: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
