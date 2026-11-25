@@ -88,11 +88,44 @@ jobs:
           if not settings.exists() or not app.exists():
               raise SystemExit("Expected Flutter Android Gradle files were not generated.")
           s = settings.read_text()
-          marker = 'id "org.jetbrains.kotlin.android" version "1.9.0" apply false'
-          if marker not in s:
+          import re
+          match = re.search(r'^\\s*id "org\\.jetbrains\\.kotlin\\.android" version "[^"]+" apply false\\s*
+          settings.write_text(s)
+          a = app.read_text()
+          if 'id "com.google.gms.google-services"' not in a:
+              a = a.replace('id "dev.flutter.flutter-gradle-plugin"',
+                            'id "dev.flutter.flutter-gradle-plugin"\n    id "com.google.gms.google-services"')
+          if "coreLibraryDesugaringEnabled true" not in a:
+              a = a.replace("compileOptions {", "compileOptions {\n        coreLibraryDesugaringEnabled true")
+          if "coreLibraryDesugaring " not in a:
+              a += "\ndependencies {\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'\n}\n"
+          app.write_text(a)
+          PY
+
+      - name: Resolve dependencies
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter pub get
+
+      - name: Analyze Dart source
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
+
+      - name: Build release APK
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: quranak-release-apk
+          path: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+, s, re.M)
+          if not match:
               raise SystemExit("Could not find the Kotlin plugin declaration in settings.gradle.")
           if 'com.google.gms.google-services' not in s:
-              s = s.replace(marker, marker + '\n    id "com.google.gms.google-services" version "4.4.2" apply false')
+              s = s[:match.end()] + '\\n    id "com.google.gms.google-services" version "4.4.2" apply false' + s[match.end():]
           settings.write_text(s)
           a = app.read_text()
           if 'id "com.google.gms.google-services"' not in a:
