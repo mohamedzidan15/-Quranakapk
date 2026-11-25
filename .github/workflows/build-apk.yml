@@ -106,21 +106,21 @@ jobs:
           PY
 
       - name: Resolve dependencies
-        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
         run: flutter pub get
 
       - name: Analyze Dart source
-        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
         run: flutter analyze --no-pub --no-fatal-infos --no-fatal-warnings
 
       - name: Build release APK
-        working-directory: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
+        working-directory: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app
         run: flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: quranak-release-apk
-          path: \${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app/build/app/outputs/flutter-apk/app-release.apk
+          path: ${{ runner.temp }}/quranak-source/Quranak_Complete_App_v5/quranak_flutter_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 14
