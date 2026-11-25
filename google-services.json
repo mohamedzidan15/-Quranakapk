@@ -1,0 +1,28 @@
+{
+  "project_info": {
+    "project_number": "945491695942",
+    "project_id": "quranak-app-54607",
+    "storage_bucket": "quranak-app-54607.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:945491695942:android:036e3f5bcf551466576d47",
+        "android_client_info": {
+          "package_name": "com.quranak.app"
+        }
+      },
+      "api_key": [
+        {
+          "current_key": "AIzaSyDx6qfwaluP-cLsSK7djA2xt9Wws3xlWHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
