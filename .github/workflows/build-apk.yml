@@ -77,7 +77,7 @@ jobs:
           s = s.replace("Image.network(\n                  _heroBgForPrayer(nextPrayerKey),",
                         "Image.asset(\n                  _heroBgForPrayer(nextPrayerKey),")
           s = s.replace("DarwinInitializationDetails(", "DarwinNotificationDetails(")
-          s = s.replace("import 'package:http/http.dart' as http;\\n", "")
+          s = s.replace("import 'package:http/http.dart' as http;", "")
           p.write_text(s, encoding="utf-8")
           PY
 
