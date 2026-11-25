@@ -63,6 +63,7 @@ jobs:
           cp "$WORK/main.dart" lib/main.dart
           cp "$WORK/pubspec.yaml" pubspec.yaml
           cp "$WORK/AndroidManifest.xml" android/app/src/main/AndroidManifest.xml
+          rm -rf test
           mkdir -p android/app/src/main/res/raw
           cp assets/audio/adhan.mp3 android/app/src/main/res/raw/adhan.mp3
           cp "$GITHUB_WORKSPACE/google-services.json" android/app/google-services.json
@@ -76,6 +77,7 @@ jobs:
           s = s.replace("Image.network(\n                  _heroBgForPrayer(nextPrayerKey),",
                         "Image.asset(\n                  _heroBgForPrayer(nextPrayerKey),")
           s = s.replace("DarwinInitializationDetails(", "DarwinNotificationDetails(")
+          s = s.replace("import 'package:http/http.dart' as http;\\n", "")
           p.write_text(s, encoding="utf-8")
           PY
 
